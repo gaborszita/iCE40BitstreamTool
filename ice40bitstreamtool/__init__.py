@@ -1,0 +1,1 @@
+from .chipdbreader import create_device_config

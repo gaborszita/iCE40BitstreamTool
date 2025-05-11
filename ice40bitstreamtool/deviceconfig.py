@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from itertools import chain
 from types import MappingProxyType
-from filereader import read_file
+from .filereader import read_file
 
 class _Freezable:
   """

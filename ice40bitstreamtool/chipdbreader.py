@@ -1,6 +1,6 @@
 import re
-from deviceconfig import DeviceConfig
-from filereader import read_file
+from .deviceconfig import DeviceConfig
+from .filereader import read_file
 
 def _process_chipdb_config(config_sections):
   """
@@ -135,10 +135,3 @@ def create_device_config(path):
   """
 
   return _process_chipdb_config(read_file(path, split_lines=True))
-
-if __name__ == "__main__":
-  device_config = create_device_config("chipdb/chipdb-1k.txt")
-  #print(device_config.get_config())
-  device_config.process_bitstream("../example.asc")
-  print(device_config.generate_bitstream())
-  #device_config.get_config()
