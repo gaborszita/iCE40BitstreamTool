@@ -1,61 +1,14 @@
 import re
 from deviceconfig import DeviceConfig
-
-class _FileSection:
-  """
-  Represents a section in the chipdb config
-  """
-
-  def __init__(self, header_line, split_lines):
-    header_line_splitted = header_line.split(" ")
-    self._section_type = header_line_splitted[0][1:]
-    self._header = header_line_splitted[1:]
-    self._split_lines = split_lines
-    self._lines = []
-  
-  def add_line(self, line):
-    if self._split_lines:
-      self._lines.append(line.split(" "))
-    else:
-      self._lines.append(line)
-
-  def get_type(self):
-    return self._section_type
-  
-  def get_header(self):
-    return self._header
-
-  def get_lines(self):
-    return self._lines
-
-def _read_file(path, split_lines):
-  """
-  Reads a chipdb or an ASCII bitstream and returns an array of FileSections
-
-  :param path: path of the file
-  """
-
-  sections = []
-  f = open(path, "r")
-
-  for line in f:
-    line = line.strip() # remove \n at the end of the line
-    # skip if a blank line or comment
-    if line == "" or line.startswith("#"):
-      continue
-    # start of new config section
-    if line.startswith("."):
-      section = _FileSection(line, split_lines)
-      sections.append(section)
-    else:
-      section.add_line(line)
-
-  sections.append(section)
-  f.close()
-
-  return sections
+from filereader import read_file
 
 def _process_chipdb_config(config_sections):
+  """
+  Creates a DeviceConfig object from the parsed sections of the chipdb file.
+
+  :param config_sections: List of _FileSection objects from the chipdb file.
+  :return: A DeviceConfig object created using the chipdb configuration.
+  """
   pins_config_sections = []
   gbufin_config_sections = []
   gbufpin_config_sections = []
@@ -174,37 +127,18 @@ def _process_chipdb_config(config_sections):
   
   return device_config
 
-def process_chipdb_file(path):
+def create_device_config(path):
   """
-  Reads a chipdb and returns a DeviceConfig object
+  Creates a DeviceConfig object using a chipdb file.
 
-  :param path: path of the chipdb file
+  :param path: Path to the chipdb file.
   """
 
-  return _process_chipdb_config(_read_file(path, split_lines=True))
-
-def process_bitstream(device_config, path):
-  tiles = device_config.get_tiles()
-  file_sections = _read_file(path, split_lines=False)
-  for section in file_sections:
-    tile_match = re.match(r"(io|logic|ramb|ramt)_tile", section.get_type())
-    if tile_match:
-      header = section.get_header()
-      if len(header) != 2:
-        print("Invalid logic tile config")
-      x = int(header[0])
-      y = int(header[1])
-      tile = tiles[y][x]
-      if tile.get_type() != section.get_type():
-        raise Exception("Tile type mismatch between device and bitstream. " +
-                        "Device has " + tile.get_type() + " at (" + str(x) + ", " + str(y) + ") "
-                        "but bitstream has " + section.get_type() + " at this location.")
-      tile.process_bitstream(section.get_lines())
-    #print("section")
+  return _process_chipdb_config(read_file(path, split_lines=True))
 
 if __name__ == "__main__":
-  device_config = process_chipdb_file("chipdb/chipdb-1k.txt")
+  device_config = create_device_config("chipdb/chipdb-1k.txt")
   #print(device_config.get_config())
-  process_bitstream(device_config, "../example.asc")
-  print(device_config.get_config())
+  device_config.process_bitstream("../example.asc")
+  print(device_config.generate_bitstream())
   #device_config.get_config()
