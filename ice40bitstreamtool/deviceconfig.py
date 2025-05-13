@@ -438,6 +438,13 @@ class DeviceConfig(_Freezable):
                           "but bitstream has " + section.get_type() + " at this location.")
         tile.process_bitstream(section.get_lines())
 
+  def reset(self):
+    """
+    Resets config bits for all tiles to all zeros.
+    """
+    for tile in self._tiles:
+      tile.reset()
+
 class _BitstreamBuilder:
   """
   Helper class for building the bitstream.
@@ -528,6 +535,13 @@ class Tile(ABC, _Freezable):
           bit_config |= bit_pos
         bit_pos <<= 1
       routing_resource.set_config_bits(bit_config)
+  
+  def _reset_routing_resources(self):
+    """
+    Disconnects all routing resources.
+    """
+    for routing_resource in chain(self._routing_switches, self._buffers):
+      routing_resource.disconnect()
 
   @abstractmethod
   def get_type(self):
@@ -553,6 +567,13 @@ class Tile(ABC, _Freezable):
     Configures the tile using a bitstream.
 
     :param bitstream: The section of the bitstream corresponding to the tile.
+    """
+    pass
+
+  @abstractmethod
+  def reset(self):
+    """
+    Resets all config bits to zeros.
     """
     pass
 
@@ -612,6 +633,13 @@ class LogicTile(Tile):
     
     x, y = self._bit_config.neg_clk_set_bit
     self.neg_clk = bool(int(bitstream[y][x]))
+  
+  def reset(self):
+    self._reset_routing_resources()
+    self.carry_in_set = 0
+    self.col_buf_ctrl = 0
+    self.lc_bits = [0 for _ in range(8)]
+    self.neg_clk = False
 
 class IoTile(Tile):
   """
@@ -710,6 +738,20 @@ class IoTile(Tile):
         pll_config |= bit_pos
       bit_pos <<= 1
     self.pll_config = pll_config
+  
+  def reset(self):
+    self._reset_routing_resources()
+    self.col_buf_ctrl = 0
+    self.iob_0_pintype = 0
+    self.iob_1_pintype = 0
+    self.icegate = False
+    self.io_ctrl_ie_0 = False
+    self.io_ctrl_ie_1 = False
+    self.io_ctrl_lvds = False
+    self.io_ctrl_ren_0 = False
+    self.io_ctrl_ren_1 = False
+    self.negclk = False
+    self.pll_config = 0
 
 class RambTile(Tile):
   """
@@ -752,6 +794,12 @@ class RambTile(Tile):
     self.negclk = bool(int(bitstream[y][x]))
     x, y = self._ramb_tile_bit_config.ram_config_powerup
     self.ram_config_powerup = bool(int(bitstream[y][x]))
+  
+  def reset(self):
+    self._reset_routing_resources()
+    self.col_buf_ctrl = 0
+    self.negclk = False
+    self.ram_config_powerup = False
 
 class RamtTile(Tile):
   """
@@ -803,6 +851,12 @@ class RamtTile(Tile):
         ram_cascade |= bit_pos
       bit_pos <<= 1
     self.ram_cascade = ram_cascade
+  
+  def reset(self):
+    self._reset_routing_resources()
+    self.negclk = False
+    self.ram_config = 0
+    self.ram_cascade = 0
 
 class _TileBitConfig:
   """
